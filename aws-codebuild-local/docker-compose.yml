@@ -8,7 +8,8 @@ services:
     volumes:
      - source_volume:/codebuild/input
      - user_volume:/codebuild/output
-     - ${CODEBUILD_LOCAL_SOURCE_DIRECTORY}:/codebuild/local:ro     # Mount this to pass the build data yml file which local-CTS will use to return build info.
+    volumes_from:
+     - container:codebuild-local:ro
     environment:
      - CODEBUILD_LOCAL_BUILD=true                                  # Go-agent attempts to connect to local CTS
      - AWS_ACCESS_KEY_ID=key                                       # Prevent going to EC2 instance metadata.
@@ -35,8 +36,10 @@ services:
      - source_volume:/codebuild/readonly:ro
      - user_volume:/codebuild/output
      - /var/run/docker.sock:/var/run/docker.sock
-     - ${CODEBUILD_LOCAL_ARTIFACTS_DIRECTORY}:/codebuild/output/artifacts
+    volumes_from:
+     - container:codebuild-local
     environment:
+     - CODEBUILD_LOCAL_BUILD=true
      - CODEBUILD_AGENT_PORT=http://BMR:3000
      - CODEBUILD_AUTH_TOKEN=12345
     links:
