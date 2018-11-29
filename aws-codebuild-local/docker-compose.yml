@@ -1,0 +1,48 @@
+version: '2'
+
+services:
+  agent:
+    image: ${LOCAL_AGENT_IMAGE}
+    ports:
+     - "3000"
+    volumes:
+     - source_volume:/codebuild/input
+     - user_volume:/codebuild/output
+     - ${CODEBUILD_LOCAL_SOURCE_DIRECTORY}:/codebuild/local:ro     # Mount this to pass the build data yml file which local-CTS will use to return build info.
+    environment:
+     - CODEBUILD_LOCAL_BUILD=true                                  # Go-agent attempts to connect to local CTS
+     - AWS_ACCESS_KEY_ID=key                                       # Prevent going to EC2 instance metadata.
+     - AWS_SECRET_ACCESS_KEY=secret                                # Prevent going to EC2 instance metadata.
+     - CODEBUILD_LOCAL_ECS_AGENT_ACCESS_KEY=
+     - CODEBUILD_LOCAL_ECS_AGENT_SECRET_KEY=
+     - CODEBUILD_LOCAL_ECS_AGENT_SESSION_TOKEN=
+     - CODEBUILD_CONTAINER_TOKENS=12345
+     - AWS_CONTAINER_CREDENTIALS_RELATIVE_URI=/credentials
+     - CODEBUILD_REGION=us-west-2                                  # Provides region to use for CTS connection in BMR
+     - CODEBUILD_CTS_ENDPOINT=http://localhost:8100
+     - CODEBUILD_LOCAL_ECS_AGENT=true
+     - CODEBUILD_GOLANG_AGENT=true
+     - CODEBUILD_LOCAL_BUILD_DATA_FILE=/LocalBuild/agent-resources/local-build-config.yml
+     - BUILDSPEC_PATH=${CODEBUILD_LOCAL_BUILDSPEC_PATH}
+     - SOURCE_PATH=${CODEBUILD_LOCAL_SOURCE_DIRECTORY}
+     - IS_INNER_CONTAINER=true
+  build:
+    image: ${IMAGE_FOR_CODEBUILD_LOCAL_BUILD}
+    command: sh -c "while [ ! -f /codebuild/readonly/bin/executor.done ]; do
+                      sleep 1;
+                    done && /codebuild/readonly/bin/executor > /dev/null"
+    volumes:
+     - source_volume:/codebuild/readonly:ro
+     - user_volume:/codebuild/output
+     - /var/run/docker.sock:/var/run/docker.sock
+     - ${CODEBUILD_LOCAL_ARTIFACTS_DIRECTORY}:/codebuild/output/artifacts
+    environment:
+     - CODEBUILD_AGENT_PORT=http://BMR:3000
+     - CODEBUILD_AUTH_TOKEN=12345
+    links:
+     - "agent:BMR"
+volumes:
+  source_volume:
+    driver: local
+  user_volume:
+    driver: local
